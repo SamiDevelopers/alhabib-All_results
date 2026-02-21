@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>نظام الاستعلام عن النتائج - مركز الحبيب</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+body { font-family: 'Segoe UI', Tahoma, sans-serif; }
+.gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+.card { background:white; border-radius:15px; box-shadow:0 10px 25px rgba(0,0,0,.1); }
+.grade-excellent{background:linear-gradient(135deg,#10b981,#059669);}
+.grade-good{background:linear-gradient(135deg,#3b82f6,#1d4ed8);}
+.grade-pass{background:linear-gradient(135deg,#f59e0b,#d97706);}
+.grade-fail{background:linear-gradient(135deg,#ef4444,#dc2626);}
+</style>
+</head>
+
+<body class="min-h-screen gradient-bg p-6">
+
+<div class="max-w-3xl mx-auto">
+
+<div class="card p-6 mb-6">
+<h2 class="text-2xl font-bold text-center mb-6">الاستعلام عن النتائج</h2>
+
+<form id="searchForm" class="space-y-4">
+
+<div>
+<label class="block mb-2 font-semibold">اختر نوع النتيجة</label>
+<select id="examType" class="w-full border p-3 rounded-lg">
+<option value="midterm1">الميد ترم - الترم الأول - أكتوبر 2025</option>
+<option value="term1">الترم الأول - ديسمبر 2025</option>
+<option value="midterm2">الميد ترم - الترم الثاني - مارس 2026</option>
+<option value="term2">الترم الثاني - مايو 2026</option>
+</select>
+</div>
+
+<div>
+<label class="block mb-2 font-semibold">كود الدارس</label>
+<input type="text" id="studentCode"
+class="w-full border p-3 rounded-lg text-center font-mono"
+placeholder="أدخل كود الدارس" required>
+</div>
+
+<button type="submit"
+class="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700">
+بحث
+</button>
+
+</form>
+
+<div id="errorMessage"
+class="hidden mt-4 p-3 bg-red-100 text-red-700 rounded-lg text-center">
+</div>
+
+</div>
+
+<div id="resultsSection" class="hidden card p-6">
+
+<h3 class="text-xl font-bold mb-4">البيانات الشخصية</h3>
+
+<p><strong>الاسم:</strong> <span id="studentName"></span></p>
+<p><strong>التليفون:</strong> <span id="studentPhone"></span></p>
+<p><strong>المرحلة:</strong> <span id="studentLevel"></span></p>
+<p><strong>الفصل:</strong> <span id="studentClass"></span></p>
+
+<hr class="my-6">
+
+<h3 class="text-xl font-bold mb-4">الدرجات</h3>
+
+<p>الطقوس الكنسية: <span id="liturgyGrade"></span></p>
+<p>الألحان والتسبحة: <span id="hymnsGrade"></span></p>
+<p>اللغة القبطية: <span id="copticGrade"></span></p>
+<p>المحفوظات والأجبية: <span id="memorizedGrade"></span></p>
+
+<hr class="my-6">
+
+<h3 class="text-xl font-bold mb-4">النتيجة النهائية</h3>
+
+<p>المجموع: <span id="totalGrade"></span> / 400</p>
+<p>النسبة: <span id="percentage"></span></p>
+
+<div id="statusCard"
+class="mt-4 text-white text-center p-4 rounded-lg">
+<span id="studentStatus" class="font-bold text-lg"></span>
+</div>
+
+</div>
+
+</div>
+
+<script>
+
+// 🔹 روابط الشيتات (استبدلها بروابطك)
+const SHEETS = {
+midterm1: "PUT_CSV_LINK_1_HERE",
+term1: "PUT_CSV_LINK_2_HERE",
+midterm2: "PUT_CSV_LINK_3_HERE",
+term2: "PUT_CSV_LINK_4_HERE"
+};
+
+let studentsData = {};
+
+function parseCSV(text){
+const rows = text.split('\n');
+return rows.map(r => r.split(','));
+}
+
+async function fetchStudentsData(examType){
+const response = await fetch(SHEETS[examType]);
+const text = await response.text();
+const rows = parseCSV(text);
+
+studentsData = {};
+
+for(let i=1;i<rows.length;i++){
+const row = rows[i];
+if(row.length >=9){
+const code = row[0].trim();
+studentsData[code] = {
+name: row[1],
+level: row[2],
+phone: row[3],
+class: row[4],
+grades:{
+liturgy: parseFloat(row[5])||0,
+memorized: parseFloat(row[6])||0,
+coptic: parseFloat(row[7])||0,
+hymns: parseFloat(row[8])||0
+}
+};
+}
+}
+}
+
+function calculateResults(grades){
+const total = grades.liturgy + grades.memorized + grades.coptic + grades.hymns;
+const percentage = Math.round((total/400)*100);
+
+let status,statusClass;
+
+if(percentage>=85){
+status="ممتاز"; statusClass="grade-excellent";
+}
+else if(percentage>=75){
+status="جيد جداً"; statusClass="grade-good";
+}
+else if(percentage>=50){
+status="ناجح"; statusClass="grade-pass";
+}
+else{
+status="راسب"; statusClass="grade-fail";
+}
+
+return {total,percentage,status,statusClass};
+}
+
+function displayResults(student){
+
+const results = calculateResults(student.grades);
+
+studentName.textContent=student.name;
+studentPhone.textContent=student.phone;
+studentLevel.textContent=student.level;
+studentClass.textContent=student.class;
+
+liturgyGrade.textContent=student.grades.liturgy;
+memorizedGrade.textContent=student.grades.memorized;
+copticGrade.textContent=student.grades.coptic;
+hymnsGrade.textContent=student.grades.hymns;
+
+totalGrade.textContent=results.total;
+percentage.textContent=results.percentage+"%";
+
+studentStatus.textContent=results.status;
+
+statusCard.className="mt-4 text-white text-center p-4 rounded-lg "+results.statusClass;
+
+resultsSection.classList.remove("hidden");
+}
+
+searchForm.addEventListener("submit", async function(e){
+e.preventDefault();
+
+const code = studentCode.value.trim();
+const examType = document.getElementById("examType").value;
+
+await fetchStudentsData(examType);
+
+if(studentsData[code]){
+displayResults(studentsData[code]);
+errorMessage.classList.add("hidden");
+}
+else{
+errorMessage.textContent="الكود غير موجود في هذه النتيجة";
+errorMessage.classList.remove("hidden");
+resultsSection.classList.add("hidden");
+}
+});
+
+</script>
+
+</body>
+</html>
